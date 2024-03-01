@@ -1,1 +1,7 @@
+# Modeling the Performance of College Football Teams in the Postseason
 
+## Introduction
+This project is an exploratory visual analysis on several sets of data relating to firearm purchases, laws, and incidents over recent years in each U.S. state. The goal of this analysis is to observe the trends in firearm purchases and firearm related deaths in the years following major legislation changes regarding firearms in a given state. In the analysis performed, the main variables of interest are the number of firearm related deaths per year and the number of firearm purchases per year.
+
+## Methods
+A large portion of this analysis is devoted to the cleaning and merging of several data sets on the keys of year and state. This was done to produce one comprehensive dataframe that contains firearm incidents, firearm purchases, and firearm laws. From this, it can be observed what years the laws underwent changes, and the preceding and following years of incidents and purchases can be quickly pulled to observe trends and any effects the law may have had. An example of this was performed in the exploratory analysis. Two graphs were been created to showcase the total number of firearms purchased in New York from 2000 through 2017, as well as the number of firearm related fatalities in New York over the same span. These years were chosen because New York implemented laws on assault weapons in both 2001 and 2013.
