@@ -1,0 +1,268 @@
+---
+title: "Final_Part_3_BristowBlaine"
+author: "Blaine Bristow"
+date: "2023-03-04"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = 'C:/Users/blain/dsc520/Final Datasets')
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+
+
+# Part 1
+
+Do gun laws have an impact on the rates of background checks run and gun violence? Gun violence is an important topic in the United States for the past several years. If any trends can be identified, perhaps a solution could be proposed. In addition, the rates between background checks run on legal gun purchases and rates of gun violence will also be observed, to see if more legal gun ownership has any relation to violence. There can be a number of issues with drawing conclusions on gun violence in an area based on the legal sales in that area. For one, legally owned guns could be coming in from other states. In addition, without data from arrests and convictions, it's difficult to determine if a crime committed with a gun is from legal or illegal ownership.
+
+
+# Research Questions
+Do more restrictive handgun purchase laws lower gun violence?
+Do more restrictive long gun purchase laws lower gun violence?
+Do more legal gun purchases (inferred from background checks) lead to higher gun violence?
+Is a change in gun violence observed in a state after general gun laws are posted/lifted?
+Do laws around the purchase of ammunition have an impact on gun violence?
+Do bans on assault weapons lead to lower gun violence?
+Do bans on high-capacity magazines lead to lower gun violence?
+Does requiring a permit to concealed carry lead to lower gun violence?
+
+
+Data sets have been found which provide data on gun violence, gun purchases, and gun laws in each US state, with all sets including data from the years 1999 through at least 2017. This allows for a good amount of control, always comparing the same states across different years, as well as allowing for observation of the impacts any changes to gun laws may have on the other data sets. The years surrounding significant changes to the law in a state will be the main focus of the research, as the impacts of these changes are the main point of observation. The goal would be to collect data points with and without the laws, then perform correlation and regression tests to determine if there is any positive or negative relationship between the data points.
+
+While gun laws are a nuanced subject, I believe that the data being used and the specificity of the research questions will allow for some answers to determine if there are some laws that have a better impact than others in lowering gun violence.
+
+
+I've found data sets that cover nearly 2 decades of information for all 50 US states regarding legal gun purchases, gun deaths, and gun laws.
+
+https://www.kaggle.com/datasets/claudecostantini/fbi-background-checks-1999-2020?resource=download
+
+https://www.kaggle.com/datasets/ahmedeltom/us-gun-deaths-by-county-19992019
+
+https://www.kaggle.com/datasets/jboysen/state-firearms
+
+The FBI background check data breaks down the number of background checks performed by the FBI when citizens attempt to purchase long guns and hand guns in every state (as well as a total number of background checks as the sum of long and hand guns), for every month from January 1999 through March 2020. It also includes the total population of the state, although it's unclear when this population number was taken, as it appears to be constant for each state throughout the 21 year span. If at any point it is determined that state populations should be used in the analysis, the data from this set will not be used due to this inaccuracy, and the data will be found elsewhere. In addition, there are a few variables (centralPoint, geometry, xtext, and ytext) that will not be used as they only apply to a visualization of the states.
+
+The US gun deaths data breaks down all deaths recorded by the CDC related to firearms (including accidental discharge, intentional self-harm, assault, undetermined intent, and law enforcement intervention) by US county for every year from 1999 through 2019. The data set includes the year, county, and state information, as well as the number of deaths, the population, and the rate of deaths per 100,000 for each county and year. Also included are upper and lower rates for a 95% confidence of the death rate, and an age adjusted rate (as well as the 95% confidence uppers and lowers). It is not explicitly stated, but some cursory research shows that age adjusted rate is determined from data from the CDC that applies the rates of each age group to a standard range distribution. This number will be more useful for removing some variables when comparing across years (and states if desired) for a population group. As the data in this set is broken down by county, this will need to be recalculated as the data set is summed to give state-wide data to match the other 2 data sets.
+
+The firearms provision data is mainly boolean fields showing which gun laws apply in all states for years 1991 through 2017. There are over 100 fields provided on this data set, but they can be broken down into 14 categories: dealer regulations, buyer regulations, prohibitions for high-risk gun possession, background checks, ammunition regulations, possession regulations, concealed carry permitting, assault weapons and high-capacity magazines, child access prevention, gun trafficking, stand your ground, preemption, immunity, and domestic violence. The areas that will be focused on for this analysis will be buyer regulations, prohibitions for high-risk, background checks, ammunition regulations, concealed carry permitting, and assault weapons and high-capacity magazines. 
+
+
+I don't believe anything beyond ggplot and basic r will be needed for this analysis, but that may change as I start performing the analysis. Once states where changes in laws have been identified, scatter plots of gun related deaths and gun purchases compared to a model prediction would likely be useful. I believe that after learning how to perform regressions in r, I have all the tools I need to be able to perform this analysis. The biggest hurdle will likely be re-working the US gun deaths data from the CDC to be based on state rather than county. Summing the rows by county and year won't be difficult, but re-calculating the age adjusted rates may prove to be an issue and require more data from the CDC.
+
+
+
+
+
+
+
+
+
+
+# Part 2
+
+```{r}
+FBI_Checks_Raw <- read.csv("002-FBI-Background-checks_out.csv")
+Firearm_Deaths_Raw <- read.csv("gun_deaths_us_1999_2019.csv")
+Firearm_Laws_Raw <- read.csv("raw_data.csv")
+```
+
+As these data sets are coming from multiple sources over different time periods, all extraneous data that can't be compared between all 3 sets will be dropped. FBI Checks ranges from January 1999 through March 2020, Firearm Deaths from 1999 through 2019, and Firearm Laws from 1991 through 2017. Therefore, data will be trimmed down to 1999 through 2017 for all data sets.
+
+To begin, the "month" column from the FBI Check data set needs to be split into month and year, then the data must be aggregated based on year and state.
+
+```{r}
+FBI_Checks <- FBI_Checks_Raw %>% separate(month, c("year","month"))
+```
+
+Both columns are then converted to integer to be more consistent with the other data sets.
+
+```{r}
+FBI_Checks$year <- as.integer(FBI_Checks$year)
+FBI_Checks$month <- as.integer(FBI_Checks$month)
+```
+
+
+The columns "month", "centralPoint", "geometry", "xtext", and "ytext" will not be needed moving forward and will be dropped.
+
+```{r}
+FBI_Checks <- select(FBI_Checks, -c(month, centralPoint, geometry, xtext, ytext))
+```
+
+Now, the columns "handgun", "long_gun", and "total" will be summed based on the columns "year" and "state", while "population" will be averaged.
+
+```{r}
+FBI_Checks <- as.data.frame(FBI_Checks %>%
+  group_by(year, state) %>%
+  summarise(handgun = sum(handgun), long_gun = sum(long_gun), total = sum(total), population = mean(population)))
+```
+
+Data for the years 2018, 2019, and 2020 will be dropped to reduce clutter.
+
+```{r}
+FBI_Checks <- FBI_Checks[FBI_Checks$year < 2018, ]
+```
+
+In addition, the columns "handgun", "long_gun" and "total" will be renamed to include "checks" to reduce confusion in the final dataset.
+
+```{r}
+colnames(FBI_Checks) <- c("year", "state", "handgun_checks", "long_gun_checks", "total_checks", "population")
+```
+
+Finally, in order to merge the three data sets the following states must be adjusted: "New-York State" will be changed to "New York", "Washington State" will be changed to "Washington", and "District of Columbia" will be dropped as no data exists for DC in either of the other datasets.
+
+```{r}
+FBI_Checks$state[FBI_Checks$state == "New-York State"] <- "New York" 
+FBI_Checks$state[FBI_Checks$state == "Washington State"] <- "Washington" 
+FBI_Checks <- FBI_Checks[FBI_Checks$state != "District of Columbia", ]
+```
+
+Much like the FBI Check set was broken out by month and needed to be aggregated, the Firearm Death data set is broken down by county and needs to be aggregated. First, a majority of columns will be dropped (only Year, State_Name, and Deaths will be kept). Population will need to be dropped, as not all counties in a state are included every year. The rate columns may be useful in the analysis, but there is not a clean way to aggregate them into states without outright recalculating. The crude rates will be recalculated, but finding data to perform the calculations around age adjusted rates for all states across all these years has proven difficult.
+
+One important note with this data set is that the CDC does not publish deaths by county for states where the gun deaths totaled less than 10 in a year, therefore conclusions drawn from analysis of this data set may be unreliable.
+
+```{r}
+Firearm_Deaths <- select(Firearm_Deaths_Raw, c(Year, State_Name, Deaths))
+```
+
+```{r}
+Firearm_Deaths <- as.data.frame(Firearm_Deaths %>%
+  group_by(Year, State_Name) %>%
+  summarise(Deaths = sum(Deaths)))
+```
+
+Once again, data more recent than 2017 will be dropped.
+
+```{r}
+Firearm_Deaths <- Firearm_Deaths[Firearm_Deaths$Year < 2018, ]
+```
+
+In order to merge this data with the other datasets, the "Year" and "State_Name" column names must be standardized to "year" and "state".
+
+```{r}
+colnames(Firearm_Deaths) <- c("year", "state", "deaths")
+```
+
+Finally, the Firearms Laws data set requires some cleaning. The data is already grouped by state and year as desired, so first the years without matching data can be dropped, then any further manipulation can be discussed. The data ranges from 1991 to 2017, so anything earlier than 1999 will be dropped.
+
+```{r}
+Firearm_Laws <- Firearm_Laws_Raw[Firearm_Laws_Raw$year > 1998, ]
+```
+
+This data set is massive, with over one hundred law fields. In order to make this more useable, additional dataframes will be created, each one including only the laws from 1 of the following categories: buyer regulations, prohibitions for high-risk, background checks, ammunition regulations, concealed carry permitting, and assault weapons and high-capacity magazines.
+
+```{r}
+Firearm_Laws_Buyer <- select(Firearm_Laws, c(state, year, waiting, waitingh, permit, permith, permitlaw, fingerprint, training, registration, registrationh, defactoreg, defactoregh, age21handgunsale, age18longgunsale, age21longgunsaled, age21longgunsale, loststolen, onepermonth))
+```
+
+```{r}
+Firearm_Laws_High_Risk <- select(Firearm_Laws, c(state, year, felony, violent, violenth, violentpartial, invcommitment, invoutpatient, danger, drugmisdemeanor, alctreatment, alcoholism))
+```
+
+```{r}
+Firearm_Laws_Checks <- select(Firearm_Laws, c(state, year, universal, universalh, gunshow, gunshowh, universalpermit, universalpermith, backgroundpurge, threedaylimit, mentalhealth, statechecks, statechecksh))
+```
+
+```{r}
+Firearm_Laws_Ammunition <- select(Firearm_Laws, c(state, year, ammlicense, ammrecords, ammpermit, ammrestrict, amm18, amm21h, ammbackground))
+```
+
+```{r}
+Firearm_Laws_Concealed <- select(Firearm_Laws, c(state, year, permitconcealed, mayissue, showing, ccrevoke, ccbackground, ccbackgroundnics, ccrenewbackground))
+```
+
+```{r}
+Firearm_Laws_Assault <- select(Firearm_Laws, c(state, year, assault, onefeature, assaultlist, assaultregister, assaulttransfer, magazine, tenroundlimit, magazinepreowned))
+```
+
+Finally, datasets will be created to merge all 3 columns based on year and state. One dataset containing all laws will be created, as well as one for each of the subcategories created previously. First, the FBI_Checks and Firearm_Deaths datasets will be merged in order to calculate an estimated crude rate. This will be the number of firearm deaths per one hundred thousand state inhabitants. It is important to note that this is a pretty rough estimate: population was assumed constant throughout the 18 year span of data for each state, and the total number of deaths will be low, as any counties with fewer than 10 firearm deaths are not accounted for in the CDC data.
+
+```{r}
+Total_Checks_and_Deaths <- merge(FBI_Checks, Firearm_Deaths, by=c("year", "state"), all = TRUE)
+Total_Checks_and_Deaths$crude_rate <- (Total_Checks_and_Deaths$deaths / Total_Checks_and_Deaths$population) * 100000
+```
+
+```{r}
+Total_All_Laws <- merge(Total_Checks_and_Deaths, Firearm_Laws, by=c("year", "state"), all = TRUE)
+Total_Buyer_Laws <- merge(Total_Checks_and_Deaths, Firearm_Laws_Buyer, by=c("year", "state"), all = TRUE)
+Total_High_Risk_Laws <- merge(Total_Checks_and_Deaths, Firearm_Laws_High_Risk, by=c("year", "state"), all = TRUE)
+Total_Check_Laws <- merge(Total_Checks_and_Deaths, Firearm_Laws_Checks, by=c("year", "state"), all = TRUE)
+Total_Ammunition_Laws <- merge(Total_Checks_and_Deaths, Firearm_Laws_Ammunition, by=c("year", "state"), all = TRUE)
+Total_Concealed_Laws <- merge(Total_Checks_and_Deaths, Firearm_Laws_Concealed, by=c("year", "state"), all = TRUE)
+Total_Assault_Laws <- merge(Total_Checks_and_Deaths, Firearm_Laws_Assault, by=c("year", "state"), all = TRUE)
+```
+
+It is important to note that there are a handful of states that did not appear for some years on the FBI_Checks dataset and some that didn't appear on the Firearm_Deaths dataset. As it is unlikely that the number of instances was 0 for either of those events in a year, it would appear that the data is missing. This shouldn't have a large impact on the analysis, as comparisons will be done year to year by state, and those years can either be avoided, or potentially skipped over.
+
+As an example of the final datasets created, below is the data for the ammunition laws in Alabama, from the years 1999 to 2003.
+
+```{r}
+Total_Ammunition_Laws[Total_Ammunition_Laws$year < 2004 & Total_Ammunition_Laws$state == "Alabama", ]
+```
+
+An important thing to learn that would make the analysis better would be the ability to calculate the age adjusted rates for firearm deaths. While crude rate will very close or equal to age adjusted in most cases, only using crude rate will cause some issues if comparing between states, as the age differences in the populations between states will differ slightly.
+
+The main goal in this research is to determine how death rate changes both when laws change, and as a relationship to gun purchases. Trends in the data can be observed quite quickly via plots (as will be discussed shortly), but in order to be more confident in the analysis and determine which laws tend to reduce gun violence or if there is a relationship between rate of legal purchases and rate of gun deaths, there should be some investigation into the actual correlation between these variables, and regression testing will be performed as well.
+
+The data has been merged and then broken out into several datasets to provide the necessary options in answering all of the questions set out at the beginning of this research.
+
+These final datasets that were created underwent some amount of manipulation, joining, and creation of new variables. Some more variables may be needed for further analysis. Perhaps some insight could be gained from analyzing the rate of gun violence in a state not as a factor of any one law, but as a factor of many (Does an increase in the total number of assault weapon bans decrease the gun violence of a state, regardless of the specific law?).
+
+Some basic visual summarization can be performed to get a good grasp on trends to help answer the questions laid out at the beginning of this research.
+
+As an example of some cursory visual analysis that could be performed, New York implemented several laws around assault weapons and high capacity magazines in the years 2000 and 2013, as seen below:
+
+```{r}
+Total_Assault_Laws[Total_Assault_Laws$state == "New York", ]
+```
+
+Therefore, a plot could be created showing the number of gun deaths in the state in the years preceding and following these changes:
+
+```{r}
+ggplot(Total_Assault_Laws[Total_Assault_Laws$state == "New York", ], aes(year, deaths)) + geom_point() + geom_vline(xintercept = 2000) + geom_vline(xintercept = 2013) + ggtitle("Gun Deaths in NY Following 2000 + 2013 Assault Weapon Laws") + xlab("Year") + ylab("Number of Deaths")
+```
+In addition, the number of background checks performed by the FBI each year could be used to determine the number of legal gun purchase attempts:
+
+```{r}
+ggplot(Total_Assault_Laws[Total_Assault_Laws$state == "New York", ], aes(year, total_checks)) + geom_point() + geom_vline(xintercept = 2000) +  geom_vline(xintercept = 2013) + ggtitle("Background Checks in NY Following 2001 + 2013 Assault Weapon Laws") + xlab("Year") + ylab("Number of Checks")
+```
+
+At a high level overview, it would appear that while neither of these laws reduced the number of attempts at legal gun purchases in New York, with the number approximately tripling over the 18 year span, a clear downward trend in gun deaths was seen, falling by 20-35% over the same span.
+
+In order to build a predictive model with a high level of confidence, more knowledge is needed in training machine learning algorithms, specifically if there is enough data here to be able produce models around each of the law groups of interest that have good accuracy.
+
+It could prove useful to train an algorithm to be able to predict what legislative changes would result in reduced deaths in a state. While it may not be advanced enough to predict the number or crude rate when provided a set of laws, perhaps a simple model could be built that would accurately determine if the crude rate would fall above or below some baseline, such as the national average.
+
+
+
+
+
+
+
+
+
+
+# Part 3
+
+Gun control is a topic of much debate in US politics. The goal of this research is to attempt to provide some potential solutions through the use of data analysis and a predictive model. There are numerous gun laws that have been implemented throughout the country, so this exploratory research will focus on a few key areas, such as bans on "assault weapons" and "high-capacity magazines".
+
+The main question that this research is attempting to answer is: Can effectiveness of state gun laws be be determined with publicly available data?
+
+To answer this, 3 data sets were analyzed, all on a per-state and per-year basis. The data sets were a list of gun laws, number of FBI background checks for gun purchases, and firearm related deaths. The gun laws data is an exhaustive list containing data for 136 different laws, listing whether each law is active in a state every year. The background check data can give a rough estimate of the number of legal gun purchases made in a state in a month, which has been aggregated into the number made in a year. The firearms death data is a numerical data provided by the CDC on a county basis and aggregated into a state basis.
+
+The analysis was more difficult to perform than initially anticipated due to difficulty in finding many opportunities to observe the data surrounding law changes. The law doesn't change very often, and when it does, it didn't always target the laws that were the focus of this research. In the limited analysis that was performed, promising results were observed. It was only 1 observation, and there are assumptions being made that ignore any outside influences, but a downward trend was seen in gun deaths in the years following law changes in New York, despite the increase in the number of background checks.
+
+In order to build a predictive model regarding the effectiveness of these laws, one could pull data for the years surrounding all of the scenarios where changes to the law were made, then create a logistic regression model, taking the laws as inputs and predicting the number of deaths per capita. There will likely be some issues with this regarding comparing states against one another, as the analysis was originally only comparing data within target states to remove any effects of things like population density and culture differences. In a perfect scenario, a model could be created that could account for these differences as well.
+
+If an accurate model can be built, perhaps the insight provided could help people reach a middle ground on gun laws. It is important to note that an argument for proponents of less restriction of firearms is to keep the government in check by the threat of the possibility of revolt, so this research won't completely resolve the debate.
+
+The gun deaths data needs improvement. The CDC reports data on a per-county basis, but does not report on counties with fewer than 10 deaths in a year. Texas has the most counties at 254. This means the CDC could report 0 deaths in a year when there were actually as many 2286, which would place as the 32nd highest number in the current dataset. A better dataset would require the total data of each state. In addition, a wider range of years would likely improve any model built. Although the data covers nearly 20 years, states don't change gun laws frequently, so it can be difficult to find the desired scenarios. More years of data would provide more opportunities to study the effects of laws that were enacted.
+
+In this initial research, promising results were observed, but numerous issues were uncovered that should be addressed before moving forward. A better source for gun deaths is absolutely necessary to develop a model that can be trusted. In addition, extensive work will likely be required in efforts to account for factors beyond just the laws enacted in a state. Finally, more data is needed. There's likely not enough here to train an accurate model. If these issues can be addressed, a well-trained model could prove useful in setting laws, potentially helping lawmakers reach a balance of minimizing both gun deaths and restrictions.
