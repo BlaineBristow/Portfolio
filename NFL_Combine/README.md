@@ -1,4 +1,4 @@
-# Predicting NFL Prospect Draft Position Based on NFL Combine Performance
+# Predicting NFL Prospect Draft Position Using NFL Combine Performance
 
 ## Introduction
 This project is an exploratory visual analysis on several sets of data relating to firearm purchases, laws, and incidents over recent years in each U.S. state. The goal of this analysis is to observe the trends in firearm purchases and firearm related deaths in the years following major legislation changes regarding firearms in a given state. In the analysis performed, the main variables of interest are the number of firearm related deaths per year and the number of firearm purchases per year.
