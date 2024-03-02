@@ -1,7 +1,7 @@
 # Predicting NFL Prospect Draft Position Using NFL Combine Performance
 
 ## Introduction
-The NFL Combine is run every year to get accurate measurements of the physical abilities of players hoping to get drafted. The goal of this research is to determine how heavily the Combine results factor into draft position.
+Every year, the best amateur football players attend the NFL Combine in hopes of being selected in the NFL Draft. The goal of this research is to determine if the measurable NFL Combine results can be used to predict the draft position of players, depending on position group.
 
 ## Methods
-All players will be sorted into different dataframes based on position. Then, the correlations between each of the features and the draft position will be calculated to observe which of the drills and measurements are most likely to impact draft position. Further, a logistic regression can be performed to predict the round a player will be drafted in based on combine results.
+2 models were created for each of the 7 position groups, one to predict the round the player was selected in, and another to predict the overall pick of the player. The round predictor model was built on logistic regression, while the pick number model was built on linear regression.
